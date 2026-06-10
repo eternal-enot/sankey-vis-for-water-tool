@@ -1,0 +1,5 @@
+.Rhistory
+.Rproj.user/
+*.save
+.positai
+.RData
