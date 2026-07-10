@@ -1,20 +1,16 @@
-# Introduction 
-TODO: Give a short introduction of your project. Let this section explain the objectives or the motivation behind this project. 
+# WaterSankeyD3
 
-# Getting Started
-TODO: Guide users through getting your code up and running on their own system. In this section you can talk about:
-1.	Installation process
-2.	Software dependencies
-3.	Latest releases
-4.	API references
+R htmlwidget for interactive D3 Sankey diagrams of agricultural water flows. Built on [networkD3](https://christophergandrud.github.io/networkD3/), adapted for the GOAL Sciences PLANET Food System Explorer (water-balance visualization).
 
-# Build and Test
-TODO: Describe and show how to build your code and run the tests. 
+## Features beyond networkD3
 
-# Contribute
-TODO: Explain how other users and developers can contribute to make your code better. 
+- Rescaling of selected nodes so small flows remain visually readable
+- Fixed vertical order of nodes within a column
+- Custom node and link colouring
+- Zoom into a node on click
+- Stage labels above diagram columns
+- Scale legend, tooltips, and visual markers for rescaled nodes
 
-If you want to learn more about creating good readme files then refer the following [guidelines](https://docs.microsoft.com/en-us/azure/devops/repos/git/create-a-readme?view=azure-devops). You can also seek inspiration from the below readme files:
-- [ASP.NET Core](https://github.com/aspnet/Home)
-- [Visual Studio Code](https://github.com/Microsoft/vscode)
-- [Chakra Core](https://github.com/Microsoft/ChakraCore)
+## Live demo
+
+[Agricultural Water Utilization](https://goalsciences.org/planet-food-system-explorer/waterbalance)

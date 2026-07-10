@@ -184,7 +184,7 @@ sankeyNetwork <- function(
     htmlwidgets::createWidget(name = "sankeyNetwork", x = list(links = LinksDF,
         nodes = NodesDF, options = options), width = width, height = height,
         htmlwidgets::sizingPolicy(padding = 10, browser.fill = TRUE),
-        package = "WaterSankeyD3") #change package name later
+        package = "WaterSankeyD3")
 }
 
 #' Shiny bindings for WaterSankeyD3

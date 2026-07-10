@@ -110,9 +110,7 @@ d3.sankey = function() {
   // Also, if the source and target are not objects, assume they are indices.
   function computeNodeLinks() {
     nodes.forEach(function(node) {
-      // Links that have this node as source.
       node.sourceLinks = [];
-      // Links that have this node as target.
       node.targetLinks = [];
     });
 
@@ -168,7 +166,7 @@ d3.sankey = function() {
       });
 
       if (nextNodes.length == remainingNodes.length) {
-        // There must be a cycle here. Let's search for a link that breaks it.
+        // There must be a cycle here?????? idk
         findAndMarkCycleBreaker(nextNodes);
         // Start over.
         // TODO: make this optional?
@@ -212,24 +210,20 @@ d3.sankey = function() {
         target = link.target;
         for (var l = 0; l < path.length; l++) {
           if (path[l].source == target) {
-            // We found a cycle. Search for weakest link in cycle
             var weakest = link;
             for (; l < path.length; l++) {
               if (path[l].value < weakest.value) {
                 weakest = path[l];
               }
             }
-            // Mark weakest link as (known) cycle breaker and abort search.
             weakest.cycleBreaker = true;
             return weakest;
           }
         }
 
-        // Recurse deeper.
         path.push(link);
         link = depthFirstCycleSearch(target, path);
         path.pop();
-        // Stop further search if we found a cycle breaker.
         if (link) {
           return link;
         }
@@ -288,18 +282,18 @@ d3.sankey = function() {
     //
     initializeNodeDepth();
     resolveCollisions();
-    if (pinToTopCore) normalizeBreadthTops(); // <-- added
+    if (pinToTopCore) normalizeBreadthTops();
     computeLinkDepths();
 
     for (var alpha = 1; iterations > 0; --iterations) {
       relaxRightToLeft(alpha *= .99);
       resolveCollisions();
-      if (pinToTopCore) normalizeBreadthTops(); // <-- added
+      if (pinToTopCore) normalizeBreadthTops();
       computeLinkDepths();
 
       relaxLeftToRight(alpha);
       resolveCollisions();
-      if (pinToTopCore) normalizeBreadthTops(); // <-- added
+      if (pinToTopCore) normalizeBreadthTops();
       computeLinkDepths();
     }
 

@@ -1,3 +1,4 @@
+// Derive node actualValue from connected link values.
 function computeNodeActualValuesFromLinks(links, nodes) {
   nodes.forEach(function (n) {
     n._inActual = 0;
@@ -17,6 +18,7 @@ function computeNodeActualValuesFromLinks(links, nodes) {
   });
 }
 
+// Rescale core water nodes so evaporation links keep a fixed pixel height.
 function applyCoreNodeRescale(sankey, nodes, links, options, iterations) {
   var coreNodeNames = options.coreNodeNames || [
     "Precipitation",
@@ -153,8 +155,7 @@ function getCoreNodeNames(options) {
   ];
 }
 
-// Bottom of the rescale top band: must clear the annotation box, which is sized
-// from max(core.dy) across ALL core nodes (Evaporation can exceed Green Water).
+// Lower edge of the rescale annotation band.
 function getRescaleBandBottom(nodes, options) {
   var coreNames = getCoreNodeNames(options);
   var coreNodes = nodes.filter(function (n) {
@@ -169,10 +170,10 @@ function getRescaleBandBottom(nodes, options) {
   var nodePadding = options.nodePadding != null ? +options.nodePadding : 10;
   var boxPad = options.rescaleCoreBoxPadding != null ? +options.rescaleCoreBoxPadding : 10;
   var bandGap = options.rescaleCoreBandGap != null ? +options.rescaleCoreBandGap : 15;
-  // Clear the drawn box (maxY + boxPad), then add the usual gap.
   return maxCoreDy + Math.max(nodePadding, boxPad) + bandGap;
 }
 
+// Place rescaled core nodes in the top row; shift other nodes below the band.
 function pinRescaledCoreNodesToTopRow(nodes, links, sankey, options) {
   var coreNodeNames = getCoreNodeNames(options);
   var nodePadding = options.nodePadding != null ? +options.nodePadding : 10;
@@ -217,6 +218,7 @@ function pinRescaledCoreNodesToTopRow(nodes, links, sankey, options) {
   sankey.relayout();
 }
 
+// Align crop-stage nodes below the rescale band.
 function pinCropStageBelowTopRow(nodes, sankey, options) {
   var cropStage = options.cropStage != null ? +options.cropStage : 2;
   var coreNodeNames = getCoreNodeNames(options);
@@ -251,10 +253,7 @@ function pinCropStageBelowTopRow(nodes, sankey, options) {
   sankey.relayout();
 }
 
-// Re-stack one column so named nodes follow a fixed vertical order.
-// Other columns (e.g. Crop Items) are left untouched — safe with iterations > 0.
-// When rescaleCoreNodes is on, core nodes stay in the top band and the rest of
-// the column (Blue Water, Import, …) starts below the rescale box.
+// Stack nodes in fixedNodeOrder within their column.
 function applyFixedNodeOrder(nodes, sankey, options) {
   var order = options.fixedNodeOrder;
   if (!order || !order.length) {
@@ -310,7 +309,6 @@ function applyFixedNodeOrder(nodes, sankey, options) {
     colNodes.filter(isCoreNode).forEach(function (n) {
       n.y = 0;
     });
-    // Use global core max (Evaporation may be taller than Green Water).
     y0 = getRescaleBandBottom(nodes, options);
     stackNodes = inOrder.concat(rest).filter(function (n) {
       return !isCoreNode(n);
@@ -353,6 +351,7 @@ function isRescaledCoreLink(link, options) {
     (sn === "Green Water" && tn === "Evaporation & Return");
 }
 
+// Hatch pattern for rescaled core nodes.
 function ensureRescaleHatchPattern(svgRoot, patternId) {
   var defs = svgRoot.select("defs");
   if (defs.empty()) {
@@ -379,6 +378,7 @@ function ensureRescaleHatchPattern(svgRoot, patternId) {
     .attr("stroke-opacity", 0.55);
 }
 
+// Draw the dashed box and label around rescaled core nodes.
 function drawRescaleCoreAnnotation(svg, nodes, sankey, options) {
   if (!options.rescaleCoreNodes) {
     return;
@@ -536,7 +536,7 @@ HTMLWidgets.widget({
         var node_to_zoom = x.options.zoomable_nodes;
         var color_node = function color_node(d) {
           if (d.group) {
-            return color(d.group); // <--- deleted .replace(...) // (d.group.replace(/ .*/, ""));
+            return color(d.group);
           } else {
             return "#cccccc";
           }
@@ -544,7 +544,7 @@ HTMLWidgets.widget({
 
         var color_link = function color_link(d) {
           if (d.group) {
-            return color(d.group); // <--- deleted .replace(...) // (d.group.replace(/ .*/, ""));
+            return color(d.group);
           } else {
             return "#000000";
           }
@@ -584,20 +584,6 @@ HTMLWidgets.widget({
             pinCropStageBelowTopRow(nodes, sankey, options);
           }
         }
-
-        // // ---- Pin columns to the top (easy approach) ----
-        // if (options.pinToTop === undefined || options.pinToTop) {
-        //   var groupsByX = d3.nest()
-        //     .key(function (d) { return d.x; })
-        //     .entries(nodes);
-
-        //   groupsByX.forEach(function (g) {
-        //     var minY = d3.min(g.values, function (n) { return n.y; });
-        //     g.values.forEach(function (n) { n.y -= minY; });
-        //   });
-
-        //   sankey.relayout();
-        // }
 
         // remove previously added scale
         const scale_div = document.getElementById("append_scale");
@@ -784,7 +770,7 @@ HTMLWidgets.widget({
 
           }
         });
-        //Add cursor to nodes with zoom
+        // Cursor for zoomable nodes
         d3.select(el)
           .selectAll(".node-rect")
           .filter(function (d, i) { return node_to_zoom.indexOf(d.name) >= 0; }) //ADD LIST OF ZOOM NODES
@@ -896,12 +882,9 @@ HTMLWidgets.widget({
           link.attr("d", path);
         }
 
-        //--------------------------------------------------------------------------
-        // LEGEND
-
+        // Legend
         sankey_graph = document.getElementById("append_scale");
 
-        //Calculate the scale
         let coef_refactor = 1 / window.devicePixelRatio;
 
         var cropStageForLegend = options.cropStage != null ? +options.cropStage : 2;
@@ -920,7 +903,7 @@ HTMLWidgets.widget({
 
         let scale_value = 0.25 * (node__value * 100) / node__height;
 
-        //1. Create scale
+        // Create scale box
         let box_scale_div = document.createElement("div");
         box_scale_div.setAttribute("id", "scale_box");
         box_scale_div.setAttribute(
@@ -931,7 +914,6 @@ HTMLWidgets.widget({
         let img_scale_div = document.createElement("div");
         img_scale_div.setAttribute("class", "img_scale");
 
-        //1.2. Text element
         let tex_scale_div = document.createElement("div");
         tex_scale_div.setAttribute("id", "scale_text");
         tex_scale_div.setAttribute(
@@ -946,7 +928,6 @@ HTMLWidgets.widget({
 
       scale_text.setAttribute("style", "margin: 0px;");
 
-      //2. Create zoom-info
       let box_zoom_div = document.createElement("div");
       box_zoom_div.setAttribute("id", "zoom_box");
       box_zoom_div.setAttribute(
@@ -954,7 +935,6 @@ HTMLWidgets.widget({
         "min-width: 40px; height: 25px; border: 5px solid; align-self: flex-end;"
       );
 
-      //2.2. Text element
       let tex_zoom_div = document.createElement("div");
       tex_zoom_div.setAttribute("id", "zoom_text");
       tex_zoom_div.setAttribute(
@@ -966,7 +946,8 @@ HTMLWidgets.widget({
       zoom_text.textContent =
         "Click on bold for zoom";
       zoom_text.setAttribute("style", "margin: 0px;");
-        //2. Mouseover info
+      
+      // Mouseover info
       let mouseover_zoom_div = document.createElement("div");
       mouseover_zoom_div.setAttribute("id", "mouseover_box");
       mouseover_zoom_div.setAttribute(
@@ -974,7 +955,6 @@ HTMLWidgets.widget({
         "min-width: 40px; height: 25px; background: grey; align-self: flex-end;"
       );
 
-      //2.2. Text element
       let tex_mouseover_div = document.createElement("div");
       tex_mouseover_div.setAttribute("id", "mouseover_text");
       tex_mouseover_div.setAttribute(
@@ -987,7 +967,6 @@ HTMLWidgets.widget({
         "Mouseover for values";
       mouseover_text.setAttribute("style", "margin: 0px;");
 
-      //Append blocks
       sankey_graph.append(box_scale_div);
       sankey_graph.append(img_scale_div);
       sankey_graph.append(tex_scale_div);
