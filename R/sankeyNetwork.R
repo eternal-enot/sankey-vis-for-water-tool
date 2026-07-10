@@ -102,7 +102,8 @@ sankeyNetwork <- function(
     evapLinkPx = 25,
     rescaleCoreLabel = "Rescaled nodes",
     rescaleCoreBandGap = 15L,
-    pinCropStageBelowTopRow = FALSE
+    pinCropStageBelowTopRow = FALSE,
+    fixedNodeOrder = NULL
     # data_source = NULL,
     # top_producers_items,
     # trade_info_nodes = NULL,
@@ -173,7 +174,8 @@ sankeyNetwork <- function(
         evapLinkPx = evapLinkPx,
         rescaleCoreLabel = rescaleCoreLabel,
         rescaleCoreBandGap = rescaleCoreBandGap,
-        pinCropStageBelowTopRow = pinCropStageBelowTopRow
+        pinCropStageBelowTopRow = pinCropStageBelowTopRow,
+        fixedNodeOrder = fixedNodeOrder
         # data_source = data_source, top_producers_items = top_producers_items,
         # trade_info_nodes = trade_info_nodes, n_decimals = n_decimals
         )

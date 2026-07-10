@@ -145,14 +145,37 @@ function applyCoreNodeRescale(sankey, nodes, links, options, iterations) {
   pinRescaledCoreNodesToTopRow(nodes, links, sankey, options);
 }
 
-function pinRescaledCoreNodesToTopRow(nodes, links, sankey, options) {
-  var coreNodeNames = options.coreNodeNames || [
+function getCoreNodeNames(options) {
+  return options.coreNodeNames || [
     "Precipitation",
     "Green Water",
     "Evaporation & Return"
   ];
+}
+
+// Bottom of the rescale top band: must clear the annotation box, which is sized
+// from max(core.dy) across ALL core nodes (Evaporation can exceed Green Water).
+function getRescaleBandBottom(nodes, options) {
+  var coreNames = getCoreNodeNames(options);
+  var coreNodes = nodes.filter(function (n) {
+    return coreNames.indexOf(n.name) >= 0;
+  });
+  var maxCoreDy = d3.max(coreNodes, function (n) {
+    return n.dy;
+  });
+  if (maxCoreDy == null || !isFinite(maxCoreDy)) {
+    maxCoreDy = 0;
+  }
   var nodePadding = options.nodePadding != null ? +options.nodePadding : 10;
+  var boxPad = options.rescaleCoreBoxPadding != null ? +options.rescaleCoreBoxPadding : 10;
   var bandGap = options.rescaleCoreBandGap != null ? +options.rescaleCoreBandGap : 15;
+  // Clear the drawn box (maxY + boxPad), then add the usual gap.
+  return maxCoreDy + Math.max(nodePadding, boxPad) + bandGap;
+}
+
+function pinRescaledCoreNodesToTopRow(nodes, links, sankey, options) {
+  var coreNodeNames = getCoreNodeNames(options);
+  var nodePadding = options.nodePadding != null ? +options.nodePadding : 10;
 
   function isCoreNode(n) {
     return coreNodeNames.indexOf(n.name) >= 0;
@@ -167,13 +190,7 @@ function pinRescaledCoreNodesToTopRow(nodes, links, sankey, options) {
     n.y = 0;
   });
 
-  var maxCoreDy = d3.max(coreNodes, function (n) {
-    return n.dy;
-  });
-  if (maxCoreDy == null || !isFinite(maxCoreDy)) {
-    maxCoreDy = 0;
-  }
-  var bandBottom = maxCoreDy + nodePadding + bandGap;
+  var bandBottom = getRescaleBandBottom(nodes, options);
 
   var nodesByX = d3.nest()
     .key(function (d) {
@@ -204,7 +221,6 @@ function pinCropStageBelowTopRow(nodes, sankey, options) {
   var cropStage = options.cropStage != null ? +options.cropStage : 2;
   var coreNodeNames = getCoreNodeNames(options);
   var nodePadding = options.nodePadding != null ? +options.nodePadding : 10;
-  var bandGap = options.rescaleCoreBandGap != null ? +options.rescaleCoreBandGap : 15;
 
   var coreNodes = nodes.filter(function (n) {
     return coreNodeNames.indexOf(n.name) >= 0;
@@ -213,13 +229,7 @@ function pinCropStageBelowTopRow(nodes, sankey, options) {
     return;
   }
 
-  var maxCoreDy = d3.max(coreNodes, function (n) {
-    return n.dy;
-  });
-  if (maxCoreDy == null || !isFinite(maxCoreDy)) {
-    maxCoreDy = 0;
-  }
-  var bandBottom = maxCoreDy + nodePadding + bandGap;
+  var bandBottom = getRescaleBandBottom(nodes, options);
 
   var cropNodes = nodes.filter(function (n) {
     return +n.stage === cropStage;
@@ -241,12 +251,86 @@ function pinCropStageBelowTopRow(nodes, sankey, options) {
   sankey.relayout();
 }
 
-function getCoreNodeNames(options) {
-  return options.coreNodeNames || [
-    "Precipitation",
-    "Green Water",
-    "Evaporation & Return"
-  ];
+// Re-stack one column so named nodes follow a fixed vertical order.
+// Other columns (e.g. Crop Items) are left untouched — safe with iterations > 0.
+// When rescaleCoreNodes is on, core nodes stay in the top band and the rest of
+// the column (Blue Water, Import, …) starts below the rescale box.
+function applyFixedNodeOrder(nodes, sankey, options) {
+  var order = options.fixedNodeOrder;
+  if (!order || !order.length) {
+    return;
+  }
+
+  var orderIndex = {};
+  order.forEach(function (name, i) {
+    orderIndex[name] = i;
+  });
+
+  var fixedNodes = nodes.filter(function (n) {
+    return Object.prototype.hasOwnProperty.call(orderIndex, n.name);
+  });
+  if (fixedNodes.length === 0) {
+    return;
+  }
+
+  var colX = fixedNodes[0].x;
+  var colNodes = nodes.filter(function (n) {
+    return n.x === colX;
+  });
+
+  var inOrder = [];
+  var rest = [];
+  colNodes.forEach(function (n) {
+    if (Object.prototype.hasOwnProperty.call(orderIndex, n.name)) {
+      inOrder.push(n);
+    } else {
+      rest.push(n);
+    }
+  });
+
+  inOrder.sort(function (a, b) {
+    return orderIndex[a.name] - orderIndex[b.name];
+  });
+  rest.sort(function (a, b) {
+    return a.y - b.y;
+  });
+
+  var nodePadding = options.nodePadding != null ? +options.nodePadding : 10;
+  var coreNames = getCoreNodeNames(options);
+  var rescaleOn = !!options.rescaleCoreNodes;
+
+  function isCoreNode(n) {
+    return coreNames.indexOf(n.name) >= 0;
+  }
+
+  var stackNodes;
+  var y0;
+
+  if (rescaleOn) {
+    colNodes.filter(isCoreNode).forEach(function (n) {
+      n.y = 0;
+    });
+    // Use global core max (Evaporation may be taller than Green Water).
+    y0 = getRescaleBandBottom(nodes, options);
+    stackNodes = inOrder.concat(rest).filter(function (n) {
+      return !isCoreNode(n);
+    });
+  } else {
+    y0 = d3.min(colNodes, function (n) {
+      return n.y;
+    });
+    if (y0 == null || !isFinite(y0)) {
+      y0 = 0;
+    }
+    stackNodes = inOrder.concat(rest);
+  }
+
+  stackNodes.forEach(function (node) {
+    node.y = y0;
+    y0 += node.dy + nodePadding;
+  });
+
+  sankey.relayout();
 }
 
 function isRescaledCoreNode(node, options) {
@@ -492,8 +576,10 @@ HTMLWidgets.widget({
 
         if (options.rescaleCoreNodes) {
           applyCoreNodeRescale(sankey, nodes, links, options, options.iterations);
+          applyFixedNodeOrder(nodes, sankey, options);
         } else {
           sankey.layout(options.iterations);
+          applyFixedNodeOrder(nodes, sankey, options);
           if (options.pinCropStageBelowTopRow) {
             pinCropStageBelowTopRow(nodes, sankey, options);
           }
